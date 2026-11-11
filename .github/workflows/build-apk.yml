@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -19,13 +20,27 @@ jobs:
           gradle-version: '8.9'
 
       - name: Unpack project
-        run: unzip -q FinancePro_Android_Studio_Project.zip -d financepro-project
+        run: |
+          unzip -q FinancePro_Android_Studio_Project.zip -d financepro-project
+          echo "Extracted files:"
+          find financepro-project -maxdepth 4 -type f
+          PROJECT_DIR=$(find financepro-project -type f -name settings.gradle -print -quit | xargs dirname)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: settings.gradle not found"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Build APK
-        run: gradle -p financepro-project assembleDebug
+        run: |
+          gradle -p "$PROJECT_DIR" assembleDebug
+          APK=$(find "$PROJECT_DIR/app/build/outputs/apk/debug" -name "*.apk" -print -quit)
+          test -n "$APK"
+          cp "$APK" FinancePro-debug.apk
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: FinancePro-debug-apk
-          path: financepro-project/app/build/outputs/apk/debug/app-debug.apk
+          path: FinancePro-debug.apk
           
